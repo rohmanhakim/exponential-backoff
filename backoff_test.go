@@ -1,13 +1,15 @@
-package exponentialbackoff
+package exponentialbackoff_test
 
 import (
 	"testing"
 	"time"
+
+	exponentialbackoff "github.com/rohmanhakim/exponential-backoff"
 )
 
 func TestNewConfig(t *testing.T) {
 	t.Run("creates valid config", func(t *testing.T) {
-		config, err := NewConfig(1*time.Second, 1*time.Minute, 2.0)
+		config, err := exponentialbackoff.NewConfig(1*time.Second, 1*time.Minute, 2.0)
 		if err != nil {
 			t.Errorf("NewConfig() error = %v", err)
 		}
@@ -23,39 +25,39 @@ func TestNewConfig(t *testing.T) {
 	})
 
 	t.Run("rejects negative initial duration", func(t *testing.T) {
-		_, err := NewConfig(-1*time.Second, 1*time.Minute, 2.0)
+		_, err := exponentialbackoff.NewConfig(-1*time.Second, 1*time.Minute, 2.0)
 		if err == nil {
 			t.Error("NewConfig() should error on negative initial duration")
 		}
 	})
 
 	t.Run("rejects zero or negative multiplier", func(t *testing.T) {
-		_, err := NewConfig(1*time.Second, 1*time.Minute, 0)
+		_, err := exponentialbackoff.NewConfig(1*time.Second, 1*time.Minute, 0)
 		if err == nil {
 			t.Error("NewConfig() should error on zero multiplier")
 		}
-		_, err = NewConfig(1*time.Second, 1*time.Minute, -1)
+		_, err = exponentialbackoff.NewConfig(1*time.Second, 1*time.Minute, -1)
 		if err == nil {
 			t.Error("NewConfig() should error on negative multiplier")
 		}
 	})
 
 	t.Run("rejects zero or negative max duration", func(t *testing.T) {
-		_, err := NewConfig(1*time.Second, 0, 2.0)
+		_, err := exponentialbackoff.NewConfig(1*time.Second, 0, 2.0)
 		if err == nil {
 			t.Error("NewConfig() should error on zero max duration")
 		}
 	})
 
 	t.Run("rejects initial > max duration", func(t *testing.T) {
-		_, err := NewConfig(2*time.Minute, 1*time.Minute, 2.0)
+		_, err := exponentialbackoff.NewConfig(2*time.Minute, 1*time.Minute, 2.0)
 		if err == nil {
 			t.Error("NewConfig() should error when initial > max")
 		}
 	})
 
 	t.Run("accepts zero initial duration", func(t *testing.T) {
-		config, err := NewConfig(0, 1*time.Minute, 2.0)
+		config, err := exponentialbackoff.NewConfig(0, 1*time.Minute, 2.0)
 		if err != nil {
 			t.Errorf("NewConfig() error = %v", err)
 		}
@@ -67,7 +69,7 @@ func TestNewConfig(t *testing.T) {
 
 func TestMustConfig(t *testing.T) {
 	t.Run("creates valid config without panic", func(t *testing.T) {
-		config := MustConfig(1*time.Second, 1*time.Minute, 2.0)
+		config := exponentialbackoff.MustConfig(1*time.Second, 1*time.Minute, 2.0)
 		if config.InitialDuration() != 1*time.Second {
 			t.Errorf("InitialDuration() = %v, want 1s", config.InitialDuration())
 		}
@@ -79,7 +81,7 @@ func TestMustConfig(t *testing.T) {
 				t.Error("MustConfig() should panic on invalid config")
 			}
 		}()
-		MustConfig(-1*time.Second, 1*time.Minute, 2.0)
+		exponentialbackoff.MustConfig(-1*time.Second, 1*time.Minute, 2.0)
 	})
 }
 
@@ -87,7 +89,7 @@ func TestComputeJitter(t *testing.T) {
 	t.Run("returns zero for non-positive input", func(t *testing.T) {
 		tests := []time.Duration{-1 * time.Second, 0}
 		for _, max := range tests {
-			result := ComputeJitter(max)
+			result := exponentialbackoff.ComputeJitter(max)
 			if result != 0 {
 				t.Errorf("ComputeJitter(%v) = %v, want 0", max, result)
 			}
@@ -97,7 +99,7 @@ func TestComputeJitter(t *testing.T) {
 	t.Run("returns value within range", func(t *testing.T) {
 		max := 100 * time.Millisecond
 		for i := 0; i < 100; i++ {
-			result := ComputeJitter(max)
+			result := exponentialbackoff.ComputeJitter(max)
 			if result < 0 || result > max {
 				t.Errorf("ComputeJitter(%v) = %v, want value in range [0, %v]", max, result, max)
 			}
@@ -106,10 +108,10 @@ func TestComputeJitter(t *testing.T) {
 }
 
 func TestCalculateDelay(t *testing.T) {
-	config := MustConfig(1*time.Second, 1*time.Minute, 2.0)
+	config := exponentialbackoff.MustConfig(1*time.Second, 1*time.Minute, 2.0)
 
 	t.Run("first backoff returns initial duration", func(t *testing.T) {
-		delay := CalculateDelay(1, 0, config)
+		delay := exponentialbackoff.CalculateDelay(1, 0, config)
 		if delay != config.InitialDuration() {
 			t.Errorf("CalculateDelay(1, 0, config) = %v, want %v", delay, config.InitialDuration())
 		}
@@ -129,7 +131,7 @@ func TestCalculateDelay(t *testing.T) {
 		}
 
 		for _, tt := range tests {
-			delay := CalculateDelay(tt.count, 0, config)
+			delay := exponentialbackoff.CalculateDelay(tt.count, 0, config)
 			if delay != tt.expected {
 				t.Errorf("CalculateDelay(%d, 0, config) = %v, want %v", tt.count, delay, tt.expected)
 			}
@@ -139,7 +141,7 @@ func TestCalculateDelay(t *testing.T) {
 	t.Run("caps at max duration", func(t *testing.T) {
 		// With 1s initial, 2x multiplier, 60s max:
 		// count=7: 64s -> capped to 60s
-		delay := CalculateDelay(7, 0, config)
+		delay := exponentialbackoff.CalculateDelay(7, 0, config)
 		if delay != config.MaxDuration() {
 			t.Errorf("CalculateDelay(7, 0, config) = %v, want %v", delay, config.MaxDuration())
 		}
@@ -147,12 +149,12 @@ func TestCalculateDelay(t *testing.T) {
 
 	t.Run("with jitter adds random value", func(t *testing.T) {
 		jitter := 100 * time.Millisecond
-		baseDelay := CalculateDelay(1, 0, config)
+		baseDelay := exponentialbackoff.CalculateDelay(1, 0, config)
 
 		// Run multiple times to ensure jitter is applied
 		hasJitter := false
 		for i := 0; i < 100; i++ {
-			delay := CalculateDelay(1, jitter, config)
+			delay := exponentialbackoff.CalculateDelay(1, jitter, config)
 			if delay > baseDelay {
 				hasJitter = true
 				break
@@ -165,7 +167,7 @@ func TestCalculateDelay(t *testing.T) {
 	})
 
 	t.Run("zero jitter returns exact value", func(t *testing.T) {
-		delay := CalculateDelay(1, 0, config)
+		delay := exponentialbackoff.CalculateDelay(1, 0, config)
 		if delay != config.InitialDuration() {
 			t.Errorf("CalculateDelay with zero jitter = %v, want %v", delay, config.InitialDuration())
 		}
@@ -173,11 +175,11 @@ func TestCalculateDelay(t *testing.T) {
 }
 
 func TestCalculateDelayWithServerDelay(t *testing.T) {
-	config := MustConfig(1*time.Second, 1*time.Minute, 2.0)
+	config := exponentialbackoff.MustConfig(1*time.Second, 1*time.Minute, 2.0)
 
 	t.Run("uses server delay when greater than initial", func(t *testing.T) {
 		serverDelay := 5 * time.Second
-		delay := CalculateDelay(1, 0, config, WithServerDelay(serverDelay))
+		delay := exponentialbackoff.CalculateDelay(1, 0, config, exponentialbackoff.WithServerDelay(serverDelay))
 		if delay != serverDelay {
 			t.Errorf("CalculateDelay with serverDelay = %v, want %v", delay, serverDelay)
 		}
@@ -185,7 +187,7 @@ func TestCalculateDelayWithServerDelay(t *testing.T) {
 
 	t.Run("uses initial duration when server delay is smaller", func(t *testing.T) {
 		serverDelay := 500 * time.Millisecond
-		delay := CalculateDelay(1, 0, config, WithServerDelay(serverDelay))
+		delay := exponentialbackoff.CalculateDelay(1, 0, config, exponentialbackoff.WithServerDelay(serverDelay))
 		if delay != config.InitialDuration() {
 			t.Errorf("CalculateDelay with smaller serverDelay = %v, want %v", delay, config.InitialDuration())
 		}
@@ -195,7 +197,7 @@ func TestCalculateDelayWithServerDelay(t *testing.T) {
 		serverDelay := 4 * time.Second
 		// count=1: 4s (server delay)
 		// count=2: 4s * 2 = 8s
-		delay := CalculateDelay(2, 0, config, WithServerDelay(serverDelay))
+		delay := exponentialbackoff.CalculateDelay(2, 0, config, exponentialbackoff.WithServerDelay(serverDelay))
 		expected := 8 * time.Second
 		if delay != expected {
 			t.Errorf("CalculateDelay(2) with serverDelay = %v, want %v", delay, expected)
@@ -203,7 +205,7 @@ func TestCalculateDelayWithServerDelay(t *testing.T) {
 	})
 
 	t.Run("zero server delay is ignored", func(t *testing.T) {
-		delay := CalculateDelay(1, 0, config, WithServerDelay(0))
+		delay := exponentialbackoff.CalculateDelay(1, 0, config, exponentialbackoff.WithServerDelay(0))
 		if delay != config.InitialDuration() {
 			t.Errorf("CalculateDelay with zero serverDelay = %v, want %v", delay, config.InitialDuration())
 		}
@@ -212,12 +214,13 @@ func TestCalculateDelayWithServerDelay(t *testing.T) {
 
 func TestWithServerDelay(t *testing.T) {
 	t.Run("sets server delay in options", func(t *testing.T) {
-		opts := &delayOptions{}
-		opt := WithServerDelay(5 * time.Second)
-		opt(opts)
+		config := exponentialbackoff.MustConfig(1*time.Second, 1*time.Minute, 2.0)
+		serverDelay := 5 * time.Second
+		delay := exponentialbackoff.CalculateDelay(1, 0, config,
+			exponentialbackoff.WithServerDelay(serverDelay))
 
-		if opts.serverDelay != 5*time.Second {
-			t.Errorf("WithServerDelay() = %v, want %v", opts.serverDelay, 5*time.Second)
+		if delay != 5*time.Second {
+			t.Errorf("CalculateDelay() WithServerDelay() = %v, want %v", delay, 5*time.Second)
 		}
 	})
 }
@@ -225,9 +228,9 @@ func TestWithServerDelay(t *testing.T) {
 func TestConfigDefaults(t *testing.T) {
 	// This test documents expected default values
 	// Users should set these explicitly in production
-	config := MustConfig(1*time.Second, 1*time.Minute, 2.0)
+	config := exponentialbackoff.MustConfig(1*time.Second, 1*time.Minute, 2.0)
 
-	delay := CalculateDelay(1, 0, config)
+	delay := exponentialbackoff.CalculateDelay(1, 0, config)
 	if delay != 1*time.Second {
 		t.Errorf("Default initial duration not 1 second")
 	}
@@ -235,17 +238,17 @@ func TestConfigDefaults(t *testing.T) {
 
 func TestEdgeCases(t *testing.T) {
 	t.Run("zero initial duration", func(t *testing.T) {
-		config := MustConfig(0, 1*time.Minute, 2.0)
-		delay := CalculateDelay(1, 0, config)
+		config := exponentialbackoff.MustConfig(0, 1*time.Minute, 2.0)
+		delay := exponentialbackoff.CalculateDelay(1, 0, config)
 		if delay != 0 {
 			t.Errorf("CalculateDelay with zero initial = %v, want 0", delay)
 		}
 	})
 
 	t.Run("multiplier of 1 keeps delay constant", func(t *testing.T) {
-		config := MustConfig(1*time.Second, 1*time.Minute, 1.0)
+		config := exponentialbackoff.MustConfig(1*time.Second, 1*time.Minute, 1.0)
 		for count := 1; count <= 5; count++ {
-			delay := CalculateDelay(count, 0, config)
+			delay := exponentialbackoff.CalculateDelay(count, 0, config)
 			if delay != 1*time.Second {
 				t.Errorf("CalculateDelay(%d) with multiplier 1 = %v, want 1s", count, delay)
 			}
@@ -253,9 +256,9 @@ func TestEdgeCases(t *testing.T) {
 	})
 
 	t.Run("fractional multiplier", func(t *testing.T) {
-		config := MustConfig(1*time.Second, 1*time.Minute, 1.5)
+		config := exponentialbackoff.MustConfig(1*time.Second, 1*time.Minute, 1.5)
 		// count=2: 1s * 1.5 = 1.5s
-		delay := CalculateDelay(2, 0, config)
+		delay := exponentialbackoff.CalculateDelay(2, 0, config)
 		expected := 1500 * time.Millisecond
 		if delay != expected {
 			t.Errorf("CalculateDelay(2) with 1.5 multiplier = %v, want %v", delay, expected)
