@@ -44,7 +44,7 @@ jobs:
       - name: Run race tests with coverage
         run: |
           go test -race -covermode=atomic -coverprofile=coverage.txt \
-            -coverpkg=github.com/rohmanhakim/exponential-backoff/... \
+            -coverpkg=github.com/rohmanhakim/exponential-backoff \
             ./...
 
       - name: Upload coverage
