@@ -1,5 +1,9 @@
 # exponential-backoff
 
+[![codecov](https://codecov.io/gh/rohmanhakim/exponential-backoff/graph/badge.svg?token=dmnYkGxYKD)](https://codecov.io/gh/rohmanhakim/exponential-backoff)
+[![Go Reference](https://pkg.go.dev/badge/github.com/rohmanhakim/exponential-backoff.svg)](https://pkg.go.dev/github.com/rohmanhakim/exponential-backoff)
+
+
 A Go package for computing exponential backoff delays with optional jitter and server delay support.
 
 ## Installation
